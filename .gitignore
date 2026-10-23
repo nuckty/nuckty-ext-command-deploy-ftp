@@ -1,0 +1,19 @@
+# Generated and local files
+node_modules/
+dist/
+site/
+.build/
+.DS_Store
+coverage/
+.coverage/
+temp/
+.tmp/
+logs/
+*.log
+
+
+# Local-only files
+*.tmp
+.claude/
+.zcode/
+/plans/

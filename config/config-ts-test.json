@@ -1,0 +1,18 @@
+{
+  "extends": "./config-ts.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "../src/**/*.ts",
+    "../src/test/**/*.test.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../dist"
+  ]
+}
