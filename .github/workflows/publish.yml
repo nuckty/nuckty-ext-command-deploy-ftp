@@ -1,0 +1,118 @@
+name: Publish npm
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      channel: ${{ steps.plan.outputs.channel }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+          path: project
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Verify release identity and successful main CI
+        id: plan
+        working-directory: project
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node config/npm-release.mjs plan
+      - name: Require a pinned compatible core commit
+        env:
+          NUCKTY_CORE_REF: ${{ vars.NUCKTY_CORE_REF }}
+        run: '[[ "$NUCKTY_CORE_REF" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          repository: nuckty/nuckty
+          ref: ${{ vars.NUCKTY_CORE_REF }}
+          path: nuckty
+      - name: Build compatible core
+        working-directory: nuckty
+        run: npm ci --no-audit --no-fund --registry=https://registry.npmjs.org && npm run build
+      - name: Pack the verified release commit
+        working-directory: project
+        run: |
+          npm ci --no-audit --no-fund --registry=https://registry.npmjs.org
+          node --test config/npm-release.test.mjs
+          npm pack --json > pack.json
+          node config/npm-release.mjs pack
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: npm-release-${{ github.run_id }}
+          path: |
+            project/*.tgz
+            project/release.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Use the pinned OIDC-capable npm client
+        run: npm install --global npm@11.21.1 --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: npm-release-${{ github.run_id }}
+          path: release
+      - name: Publish and verify the public archive
+        run: node config/npm-release.mjs publish
+
+  update-consumers:
+    needs: [package, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Create token limited to consumer Actions
+        id: app
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.NUCKTY_REBUILD_APP_ID }}
+          private-key: ${{ secrets.NUCKTY_REBUILD_APP_PRIVATE_KEY }}
+          owner: nuckty
+          repositories: |
+            nuckty-site
+            nuckty-demo
+          permission-actions: write
+      - name: Update exact compatible registry dependencies
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          CHANNEL: ${{ needs.package.outputs.channel }}
+        run: |
+          set -euo pipefail
+          for repository in nuckty-site nuckty-demo; do
+            gh api --method POST "repos/nuckty/$repository/actions/workflows/update-packages.yml/dispatches" -f ref=main -f "inputs[channel]=$CHANNEL"
+          done

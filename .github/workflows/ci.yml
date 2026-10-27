@@ -41,6 +41,8 @@ jobs:
           cache-dependency-path: |
             nuckty/package-lock.json
             project/package-lock.json
+      - name: Verify release automation guards
+        run: node --test project/config/npm-release.test.mjs
       - name: Install and build pinned core
         working-directory: nuckty
         run: |
