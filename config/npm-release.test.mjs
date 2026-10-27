@@ -94,8 +94,10 @@ test('npm publish resolves the release archive locally in a real dry run', () =>
         mkdirSync(path.join(directory, 'release'));
         renameSync(path.join(directory, info.filename), path.join(directory, 'release', info.filename));
         const output = execFileSync('npm', [...publishArguments(info, directory), '--dry-run', '--json'], { cwd: directory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-        const result = JSON.parse(output);
+        const parsed = JSON.parse(output);
+        const result = parsed['@nuckty/core'] ?? parsed;
 
+        assert.equal(result.integrity, packs[0].integrity);
         assert.equal(result.name, '@nuckty/core');
         assert.equal(result.version, '1.0.0-beta2');
         assert.throws(() => publishArguments({ ...info, filename: '../core.tgz' }));
