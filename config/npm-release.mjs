@@ -69,6 +69,10 @@ export function compareVersions(left, right) {
     return 0;
 }
 
+export function packArchive(directory = process.cwd()) {
+    return JSON.parse(execFileSync('npm', ['pack', '--ignore-scripts', '--json'], { cwd: directory, encoding: 'utf8' }));
+}
+
 export function archiveInfo(plan, packs, bytes) {
     assert.equal(packs.length, 1);
     const pack = packs[0];
@@ -142,7 +146,7 @@ async function main() {
         appendFileSync(process.env.GITHUB_OUTPUT, `channel=${plan.channel}\n`);
     } else if (mode === 'pack') {
         const plan = JSON.parse(readFileSync('release.json', 'utf8'));
-        const packs = JSON.parse(readFileSync('pack.json', 'utf8'));
+        const packs = packArchive();
         const info = archiveInfo(plan, packs, readFileSync(packs[0].filename));
 
         writeFileSync('release.json', `${JSON.stringify(info, null, 2)}\n`);

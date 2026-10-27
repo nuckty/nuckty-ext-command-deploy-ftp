@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { releasePlan, archiveInfo, verifyMetadata, compareVersions } from './npm-release.mjs';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { releasePlan, archiveInfo, verifyMetadata, compareVersions, packArchive } from './npm-release.mjs';
 
 const manifest = { name: '@nuckty/core', version: '1.0.0-beta2' };
 const event = { action: 'published', release: { draft: false, tag_name: 'v1.0.0-beta2', prerelease: true } };
@@ -57,4 +60,22 @@ test('invalid numeric prerelease and nonexact versions are rejected', () => {
     }
     assert.equal(compareVersions('1.0.0-alpha-2', '1.0.0-alpha-3'), -1);
     assert.equal(compareVersions('1.0.0-1', '1.0.0-alpha'), -1);
+});
+
+test('real npm pack isolates metadata from a noisy prepack lifecycle', () => {
+    const directory = mkdtempSync(path.join(os.tmpdir(), 'nuckty-release-pack-'));
+
+    try {
+        writeFileSync(path.join(directory, 'package.json'), JSON.stringify({ name: '@nuckty/core', version: '1.0.0-beta2', files: ['index.js'], scripts: { prepack: 'node prepack.mjs' } }));
+        writeFileSync(path.join(directory, 'index.js'), 'export const ready = true;\n');
+        writeFileSync(path.join(directory, 'prepack.mjs'), "import { writeFileSync } from 'node:fs'; writeFileSync('prepack-ran', 'bad'); console.log('\\u001b[34mCLI build noise');\n");
+        const packs = packArchive(directory);
+        const info = archiveInfo({ name: '@nuckty/core', version: '1.0.0-beta2' }, packs, readFileSync(path.join(directory, packs[0].filename)));
+
+        assert.equal(info.name, '@nuckty/core');
+        assert.equal(info.version, '1.0.0-beta2');
+        assert.equal(existsSync(path.join(directory, 'prepack-ran')), false);
+    } finally {
+        rmSync(directory, { recursive: true, force: true });
+    }
 });

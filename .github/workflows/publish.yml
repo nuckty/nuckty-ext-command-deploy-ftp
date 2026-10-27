@@ -53,7 +53,7 @@ jobs:
         run: |
           npm ci --no-audit --no-fund --registry=https://registry.npmjs.org
           node --test config/npm-release.test.mjs
-          npm pack --json > pack.json
+          npm run build
           node config/npm-release.mjs pack
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
