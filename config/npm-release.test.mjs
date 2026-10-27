@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, mkdirSync
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { releasePlan, archiveInfo, verifyMetadata, compareVersions, packArchive, publishArguments } from './npm-release.mjs';
+import { releasePlan, archiveInfo, verifyMetadata, compareVersions, packArchive, publishArguments, verifyPublished } from './npm-release.mjs';
 
 const manifest = { name: '@nuckty/core', version: '1.0.0-beta2' };
 const event = { action: 'published', release: { draft: false, tag_name: 'v1.0.0-beta2', prerelease: true } };
@@ -104,4 +104,46 @@ test('npm publish resolves the release archive locally in a real dry run', () =>
     } finally {
         rmSync(directory, { recursive: true, force: true });
     }
+});
+
+test('public verification retries unavailable reads without publishing again', async (context) => {
+    const bytes = Buffer.from('published archive');
+    const integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`;
+    const info = { name: '@nuckty/core', version: '1.0.0-beta2', integrity };
+    const metadata = { ...info, dist: { integrity, tarball: 'https://registry.npmjs.org/@nuckty/core/-/core.tgz' } };
+    const replies = [new Response(null, { status: 503 }), Response.json(metadata), new Response(null, { status: 503 }), Response.json(metadata), new Response(bytes)];
+    let reads = 0;
+    let waits = 0;
+
+    context.mock.method(globalThis, 'fetch', async () => replies[reads++]);
+    context.mock.method(globalThis, 'setTimeout', (callback) => { waits += 1; callback(); return 0; });
+    await verifyPublished(info);
+    assert.equal(reads, 5);
+    assert.equal(waits, 2);
+});
+
+test('public verification rejects authentication and integrity failures immediately', async (context) => {
+    const bytes = Buffer.from('published archive');
+    const integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`;
+    const info = { name: '@nuckty/core', version: '1.0.0-beta2', integrity };
+    let waits = 0;
+
+    context.mock.method(globalThis, 'setTimeout', (callback) => { waits += 1; callback(); return 0; });
+    const fetch = context.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 403 }));
+
+    await assert.rejects(verifyPublished(info), /403/);
+    const replies = [Response.json({ ...info, dist: { integrity, tarball: 'https://registry.npmjs.org/@nuckty/core/-/core.tgz' } }), new Response('different archive')];
+
+    fetch.mock.mockImplementation(async () => replies.shift());
+    await assert.rejects(verifyPublished(info), /integrity mismatch/);
+    assert.equal(waits, 0);
+});
+
+test('unavailable public verification exhausts its existing finite budget', async (context) => {
+    let reads = 0;
+
+    context.mock.method(globalThis, 'fetch', async () => { reads += 1; return new Response(null, { status: 503 }); });
+    context.mock.method(globalThis, 'setTimeout', (callback) => { callback(); return 0; });
+    await assert.rejects(verifyPublished({ name: '@nuckty/core', version: '1.0.0-beta2' }), /within ten minutes/);
+    assert.equal(reads, 60);
 });

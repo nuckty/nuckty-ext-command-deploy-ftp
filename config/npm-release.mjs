@@ -103,10 +103,10 @@ export function verifyMetadata(info, metadata, bytes) {
     assert.equal(`sha512-${createHash('sha512').update(bytes).digest('base64')}`, info.integrity, 'Public archive integrity mismatch.');
 }
 
-async function metadata(info) {
+async function metadata(info, retryUnavailable = false) {
     const response = await fetch(`${registry}/${encodeURIComponent(info.name)}/${info.version}`, { headers: { 'cache-control': 'no-cache' } });
 
-    if (response.status === 404) {
+    if (response.status === 404 || (retryUnavailable && response.status === 503)) {
         return null;
     }
     assert.ok(response.ok, `Registry metadata returned ${response.status}.`);
@@ -114,9 +114,9 @@ async function metadata(info) {
     return response.json();
 }
 
-async function verifyPublished(info) {
+export async function verifyPublished(info) {
     for (let attempt = 0; attempt < 60; attempt += 1) {
-        const value = await metadata(info);
+        const value = await metadata(info, true);
 
         if (value) {
             const url = new URL(value.dist.tarball);
@@ -129,7 +129,7 @@ async function verifyPublished(info) {
 
                 return;
             }
-            assert.equal(response.status, 404, `Registry archive returned ${response.status}.`);
+            assert.ok(response.status === 404 || response.status === 503, `Registry archive returned ${response.status}.`);
         }
         await new Promise((resolve) => setTimeout(resolve, 10000));
     }
