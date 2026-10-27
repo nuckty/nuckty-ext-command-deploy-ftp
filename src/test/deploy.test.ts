@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Writable } from 'node:stream';
 import type { AccessOptions } from 'basic-ftp';
-import type { CommandArgs } from 'nuckty';
+import type { CommandArgs } from '@nuckty/core';
 import { deployFtp } from '../index.js';
 import { ftpDeploy, loadAuthConfig, type FtpTransport, type Manifest } from '../ftp.js';
 
@@ -455,4 +455,3 @@ test('malformed target output never invokes FTP or falls back to site', async (t
         assert.equal(calls, 0);
     }
 });
-

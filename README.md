@@ -1,4 +1,4 @@
-# nuckty-ext-command-deploy-ftp
+# @nuckty/ext-command-deploy-ftp
 
 > **Publish a built artifact over FTP/FTPS — the `deploy-ftp` command.**
 
@@ -39,14 +39,14 @@ The core does not depend on `basic-ftp`; the extension does, and the import is l
 
 ## How to load
 
-This example extends the quickstart with the standard `nuckty-ext-block-root` document handler. Add the new extension to `ext` in the global `config/config-nuckty.ts`, retaining the other entries. If you use a custom document handler, keep its registration instead of `nuckty-ext-block-root`.
+This example extends the quickstart with the standard `@nuckty/ext-block-root` document handler. Add the new extension to `ext` in the global `config/config-nuckty.ts`, retaining the other entries. If you use a custom document handler, keep its registration instead of `@nuckty/ext-block-root`.
 
 ```ts
-import { defineNucktyConfig } from 'nuckty';
+import { defineNucktyConfig } from '@nuckty/core';
 
 export default defineNucktyConfig({
     targets: { main: { configDir: 'config/', outDir: 'site/' } },
-    ext: ['nuckty-ext-block-root', 'nuckty-ext-command-deploy-ftp'],
+    ext: ['@nuckty/ext-block-root', '@nuckty/ext-command-deploy-ftp'],
 });
 ```
 
@@ -64,4 +64,3 @@ Before connecting, the command verifies every local file size and MD5 against th
 ## License
 
 MIT.
-

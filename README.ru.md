@@ -1,4 +1,4 @@
-# nuckty-ext-command-deploy-ftp
+# @nuckty/ext-command-deploy-ftp
 
 > **Публикация собранного артефакта по FTP/FTPS — команда `deploy-ftp`.**
 
@@ -39,14 +39,14 @@ nuckty deploy-ftp [target] [--force] [--dry-run]
 
 ## Как подключить
 
-Пример продолжает быстрый старт со стандартным обработчиком `nuckty-ext-block-root`. Добавьте новое расширение в `ext` глобального `config/config-nuckty.ts`, сохранив остальные записи. Если обработчик документа собственный, оставьте его вместо `nuckty-ext-block-root`.
+Пример продолжает быстрый старт со стандартным обработчиком `@nuckty/ext-block-root`. Добавьте новое расширение в `ext` глобального `config/config-nuckty.ts`, сохранив остальные записи. Если обработчик документа собственный, оставьте его вместо `@nuckty/ext-block-root`.
 
 ```ts
-import { defineNucktyConfig } from 'nuckty';
+import { defineNucktyConfig } from '@nuckty/core';
 
 export default defineNucktyConfig({
     targets: { main: { configDir: 'config/', outDir: 'site/' } },
-    ext: ['nuckty-ext-block-root', 'nuckty-ext-command-deploy-ftp'],
+    ext: ['@nuckty/ext-block-root', '@nuckty/ext-command-deploy-ftp'],
 });
 ```
 
@@ -64,4 +64,3 @@ export default defineNucktyConfig({
 ## Лицензия
 
 MIT.
-

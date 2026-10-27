@@ -1,16 +1,16 @@
 /**
- * nuckty-ext-command-deploy-ftp — `nuckty deploy-ftp [target]` command-extension.
+ * @nuckty/ext-command-deploy-ftp — `nuckty deploy-ftp [target]` command-extension.
  *
  * Registers the `deploy-ftp` CLI command: manifest-driven FTP/FTPS deploy of
  * the selected target's outDir (basic-ftp, no SSH). FTP delivery belongs to
  * this extension; the core does not depend on basic-ftp.
  *
- * @module nuckty-ext-command-deploy-ftp
+ * @module @nuckty/ext-command-deploy-ftp
  */
 
 import path from 'node:path';
 import process from 'node:process';
-import type { NucktyEnv, CommandArgs } from 'nuckty';
+import type { NucktyEnv, CommandArgs } from '@nuckty/core';
 import type { DeployOpts, DeployResult } from './ftp.js';
 
 export type FtpDeploy = (options: DeployOpts) => Promise<DeployResult>;
@@ -130,4 +130,3 @@ export function register(env: NucktyEnv): void {
 }
 
 export default register;
-
