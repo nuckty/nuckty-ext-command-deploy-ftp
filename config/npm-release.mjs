@@ -73,6 +73,12 @@ export function packArchive(directory = process.cwd()) {
     return JSON.parse(execFileSync('npm', ['pack', '--ignore-scripts', '--json'], { cwd: directory, encoding: 'utf8' }));
 }
 
+export function publishArguments(info, directory = process.cwd()) {
+    assert.equal(info.filename, path.basename(info.filename));
+
+    return ['publish', path.resolve(directory, 'release', info.filename), '--ignore-scripts', '--access', 'public', '--tag', info.channel, `--registry=${registry}`];
+}
+
 export function archiveInfo(plan, packs, bytes) {
     assert.equal(packs.length, 1);
     const pack = packs[0];
@@ -169,7 +175,7 @@ async function main() {
 
                 assert.ok(compareVersions(info.version, current.version) > 0, 'Release must not move its distribution tag backwards.');
             }
-            execFileSync('npm', ['publish', path.join('release', info.filename), '--ignore-scripts', '--access', 'public', '--tag', info.channel, `--registry=${registry}`], { stdio: 'inherit' });
+            execFileSync('npm', publishArguments(info), { stdio: 'inherit' });
         }
         await verifyPublished(info);
     } else {

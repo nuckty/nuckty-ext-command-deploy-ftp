@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, mkdirSync, renameSync } from 'node:fs';
 import os from 'node:os';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { releasePlan, archiveInfo, verifyMetadata, compareVersions, packArchive } from './npm-release.mjs';
+import { releasePlan, archiveInfo, verifyMetadata, compareVersions, packArchive, publishArguments } from './npm-release.mjs';
 
 const manifest = { name: '@nuckty/core', version: '1.0.0-beta2' };
 const event = { action: 'published', release: { draft: false, tag_name: 'v1.0.0-beta2', prerelease: true } };
@@ -75,6 +76,29 @@ test('real npm pack isolates metadata from a noisy prepack lifecycle', () => {
         assert.equal(info.name, '@nuckty/core');
         assert.equal(info.version, '1.0.0-beta2');
         assert.equal(existsSync(path.join(directory, 'prepack-ran')), false);
+    } finally {
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test('npm publish resolves the release archive locally in a real dry run', () => {
+    const directory = mkdtempSync(path.join(os.tmpdir(), 'nuckty-release-publish-'));
+
+    try {
+        writeFileSync(path.join(directory, 'package.json'), JSON.stringify({ name: '@nuckty/core', version: '1.0.0-beta2', files: ['index.js'] }));
+        writeFileSync(path.join(directory, 'index.js'), 'export const ready = true;\n');
+        const packs = packArchive(directory);
+        const info = { filename: packs[0].filename, channel: 'beta' };
+
+        assert.ok(path.isAbsolute(publishArguments(info)[1]));
+        mkdirSync(path.join(directory, 'release'));
+        renameSync(path.join(directory, info.filename), path.join(directory, 'release', info.filename));
+        const output = execFileSync('npm', [...publishArguments(info, directory), '--dry-run', '--json'], { cwd: directory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        const result = JSON.parse(output);
+
+        assert.equal(result.name, '@nuckty/core');
+        assert.equal(result.version, '1.0.0-beta2');
+        assert.throws(() => publishArguments({ ...info, filename: '../core.tgz' }));
     } finally {
         rmSync(directory, { recursive: true, force: true });
     }
